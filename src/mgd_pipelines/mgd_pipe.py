@@ -16,7 +16,6 @@ from diffusers.utils import deprecate
 from diffusers.pipelines.stable_diffusion import StableDiffusionPipelineOutput
 from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion_inpaint import prepare_mask_and_masked_image
 
-
 class MGDPipe(DiffusionPipeline):
     r"""
     Pipeline for text and posemap -guided image inpainting using Stable Diffusion.
@@ -551,7 +550,7 @@ class MGDPipe(DiffusionPipeline):
             device,
             generator,
             latents,
-        )
+            )
 
         # 7. Prepare mask latent variables
         mask, masked_image_latents = self.prepare_mask_latents(
@@ -564,7 +563,19 @@ class MGDPipe(DiffusionPipeline):
             device,
             generator,
             do_classifier_free_guidance,
+            )
+
+        # Encode the original image into VAE latent space
+        original_image_latents = self.vae.encode(
+            image.to(device=device, dtype=self.vae.dtype)
+        ).latent_dist.sample()
+
+        original_image_latents = (
+                0.18215 * original_image_latents
         )
+
+        # Use the same initial noise as the diffusion latents
+        init_noise = latents / self.scheduler.init_noise_sigma
 
         # 7a. Prepare pose map latent variables
         pose_map = torch.cat([torch.zeros_like(pose_map), pose_map]) if do_classifier_free_guidance else pose_map
@@ -592,20 +603,23 @@ class MGDPipe(DiffusionPipeline):
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
-                # expand the latents if we are doing classifier free guidance
                 latent_model_input = torch.cat([latents] * 2) if do_classifier_free_guidance else latents
-
                 # 10a. Sketch conditioning
                 if i < sketch_start or i > sketch_end:
                     local_sketch = torch.zeros_like(sketch)
                 else:
                     local_sketch = sketch
-
-                # concat latents, mask, masked_image_latents in the channel dimension
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
                 latent_model_input = torch.cat(
-                    [latent_model_input, mask, masked_image_latents, pose_map.to(mask.dtype), local_sketch.to(mask.dtype)],
-                    dim=1)
+                    [
+                        latent_model_input,
+                        mask,
+                        masked_image_latents,
+                        pose_map.to(mask.dtype),
+                        local_sketch.to(mask.dtype)
+                    ],
+                    dim=1
+                )
 
                 # predict the noise residual
                 noise_pred = self.unet(latent_model_input, t, encoder_hidden_states=text_embeddings).sample
@@ -616,8 +630,26 @@ class MGDPipe(DiffusionPipeline):
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 # compute the previous noisy sample x_t -> x_t-1
-                latents = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs).prev_sample.to(
-                    self.vae.dtype)
+                latents = self.scheduler.step(
+                    noise_pred, t, latents, **extra_step_kwargs
+                ).prev_sample.to(self.vae.dtype)
+
+                # Preserve everything outside the clothing mask
+                mask_for_latents = mask[:1]
+
+                latents = (
+                        original_image_latents * (1 - mask_for_latents)
+                        + latents * mask_for_latents
+                )
+
+                # Preserve the original image outside the mask
+                original_image_latents = self.vae.encode(image).latent_dist.sample()
+                original_image_latents = 0.18215 * original_image_latents
+
+                latents = (
+                        original_image_latents * (1 - mask[:1])
+                        + latents * mask[:1]
+                )
 
                 # call the callback, if provided
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
