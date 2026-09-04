@@ -96,7 +96,7 @@ dataset = VitonHDDataset(
     dataroot_path=r"C:\Users\osun2\IdeaProjects\multimodal-garment-designer\assets\data\vitonhd",
     phase="test",
     tokenizer=tokenizer,
-    order="paired",
+    order="unpaired",
     outputlist=(
         "im_name",
         "image",
@@ -105,7 +105,7 @@ dataset = VitonHDDataset(
         "im_mask",
         "inpaint_mask",
         "parse_mask_total",
-        "im_sketch",
+        "im_sketch"
     ),
     size=(512, 384),
 )
@@ -135,7 +135,7 @@ mask_image = sample["inpaint_mask"].unsqueeze(0)
 # If your dataset class exposes it as "im_sketch_unpaired",
 # this is all we need:
 
-sketch = sample["im_sketch_unpaired"].unsqueeze(0)
+sketch = sample["im_sketch"].unsqueeze(0)
 
 # SAVE DEBUG INPUTS
 
@@ -172,12 +172,7 @@ Image.fromarray(sketch_debug).save("unpaired_sketch.png")
 
 # PROMPT
 
-prompt = "a light blue tank top with purple flower patterns"
-
-negative_prompt = (
-    "distorted face, distorted body, deformed face, "
-    "extra limbs, blurry face, malformed person"
-)
+prompt = "a frilly black blouse, transparent black long sleeves goth"
 
 print()
 print("Starting UNPAIRED MGD generation...")
@@ -189,7 +184,6 @@ print("This will be VERY slow on CPU.")
 
 result = mgd_pipe(
     prompt=prompt,
-    negative_prompt=negative_prompt,
 
     image=image,
     mask_image=mask_image,
@@ -200,7 +194,7 @@ result = mgd_pipe(
     height=512,
     width=384,
 
-    num_inference_steps=30,
+    num_inference_steps=20,
     guidance_scale=7.5,
 
     sketch_cond_rate=1.0,
@@ -263,10 +257,10 @@ final_np = np.clip(
 
 final_image = Image.fromarray(final_np)
 
-final_image.save("unpaired_mgd_final.png")
+final_image.save(prompt + ".png")
 
 print()
 print("FINAL RESULT:")
-print("  unpaired_mgd_final.png")
+print(prompt + ".png")
 print()
 print("Done!")
