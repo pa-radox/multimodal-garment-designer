@@ -10,29 +10,11 @@ from diffusers import UNet2DConditionModel
 from src.mgd_pipelines.mgd_pipe import MGDPipe
 
 
-# ============================================================
-# SETTINGS
-# ============================================================
-
-SD_PATH = r"C:\mgd_models\stable-diffusion-inpainting"
-
-MGD_WEIGHTS = r"C:\mgd_models\dresscode.pth"
-
-DATA_ROOT = (
-    r"C:\Users\osun2\IdeaProjects"
-    r"\multimodal-garment-designer"
-    r"\assets\data\vitonhd"
-)
-
-OUTPUT_DIR = "mgd_variations2"
-
-PERSON_INDEX = 0
-
 # ------------------------------------------------------------
 # EXPERIMENT SETTINGS
 # ------------------------------------------------------------
 
-NUM_VARIATIONS = 4
+NUM_VARIATIONS = 3
 
 NUM_INFERENCE_STEPS = 10
 
@@ -53,8 +35,26 @@ BASE_SEED = 1000
 # Start with 1.0 for the actual experiment.
 #
 
-SKETCH_COND_RATE = 0.25
+SKETCH_COND_RATE = 0.75
+START_COND_RATE = 1
 
+# ============================================================
+# SETTINGS
+# ============================================================
+
+SD_PATH = r"C:\mgd_models\stable-diffusion-inpainting"
+
+MGD_WEIGHTS = r"C:\mgd_models\dresscode.pth"
+
+DATA_ROOT = (
+    r"C:\Users\osun2\IdeaProjects"
+    r"\multimodal-garment-designer"
+    r"\assets\data\vitonhd"
+)
+
+OUTPUT_DIR = "mgd_variations_" + str(SKETCH_COND_RATE) + "_" + str(START_COND_RATE)
+
+PERSON_INDEX = 0
 
 # ============================================================
 # OUTPUT DIRECTORY
@@ -362,7 +362,7 @@ mask_np = mask_np[:, :, None]
 # manually specifying different designs.
 #
 
-prompt = "a fashionable garment with distinctive design details"
+prompt = "a fashionable garment with distinctive and unique design details"
 
 
 # ============================================================
@@ -375,30 +375,15 @@ print("MGD DESIGN DIVERSITY EXPERIMENT")
 print("========================================")
 print()
 
-print(
-    "Number of variations:",
-    NUM_VARIATIONS
-)
+print("Number of variations:",NUM_VARIATIONS)
 
-print(
-    "Prompt:",
-    prompt
-)
+print("Prompt:",prompt)
 
-print(
-    "Sketch conditioning:",
-    SKETCH_COND_RATE
-)
+print("Sketch conditioning:",SKETCH_COND_RATE)
 
-print(
-    "Inference steps:",
-    NUM_INFERENCE_STEPS
-)
+print("Inference steps:",NUM_INFERENCE_STEPS)
 
-print(
-    "Base seed:",
-    BASE_SEED
-)
+print("Base seed:",BASE_SEED)
 
 print()
 print("This will be VERY slow on CPU.")
@@ -464,7 +449,7 @@ for i in range(NUM_VARIATIONS):
 
         sketch_cond_rate=SKETCH_COND_RATE,
 
-        start_cond_rate=0,
+        start_cond_rate=START_COND_RATE,
 
         output_type="pil",
     )
