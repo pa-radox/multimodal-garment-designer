@@ -24,7 +24,7 @@ DATA_ROOT = (
     r"\assets\data\vitonhd"
 )
 
-OUTPUT_DIR = "mgd_variations"
+OUTPUT_DIR = "mgd_variations2"
 
 PERSON_INDEX = 0
 
@@ -34,7 +34,7 @@ PERSON_INDEX = 0
 
 NUM_VARIATIONS = 4
 
-NUM_INFERENCE_STEPS = 20
+NUM_INFERENCE_STEPS = 10
 
 GUIDANCE_SCALE = 7.5
 
@@ -53,7 +53,7 @@ BASE_SEED = 1000
 # Start with 1.0 for the actual experiment.
 #
 
-SKETCH_COND_RATE = 1.0
+SKETCH_COND_RATE = 0.25
 
 
 # ============================================================
@@ -362,7 +362,7 @@ mask_np = mask_np[:, :, None]
 # manually specifying different designs.
 #
 
-prompt = "a garment"
+prompt = "a fashionable garment with distinctive design details"
 
 
 # ============================================================
