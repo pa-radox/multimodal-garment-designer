@@ -16,13 +16,13 @@ from src.mgd_pipelines.mgd_pipe import MGDPipe
 
 NUM_VARIATIONS = 3
 
-NUM_INFERENCE_STEPS = 10
+NUM_INFERENCE_STEPS = 20
 
 GUIDANCE_SCALE = 7.5
 
 # Same base seed every time you run the experiment.
 # Each variation gets BASE_SEED + variation number.
-BASE_SEED = 1000
+BASE_SEED = 1003
 
 # ------------------------------------------------------------
 # SKETCH CONDITIONING
@@ -36,7 +36,7 @@ BASE_SEED = 1000
 #
 
 SKETCH_COND_RATE = 0.75
-START_COND_RATE = 1
+START_COND_RATE = 0.25
 
 # ============================================================
 # SETTINGS
@@ -52,7 +52,8 @@ DATA_ROOT = (
     r"\assets\data\vitonhd"
 )
 
-OUTPUT_DIR = "mgd_variations_" + str(SKETCH_COND_RATE) + "_" + str(START_COND_RATE)
+#OUTPUT_DIR = "mgd_variations_" + str(SKETCH_COND_RATE) + "_" + str(START_COND_RATE)
+OUTPUT_DIR = "specific_seed_" + str(SKETCH_COND_RATE) + "_" + str(START_COND_RATE)
 
 PERSON_INDEX = 0
 
@@ -185,7 +186,6 @@ dataset = VitonHDDataset(
 
 print("Dataset loaded!")
 
-
 # ============================================================
 # SELECT PERSON
 # ============================================================
@@ -202,54 +202,32 @@ print(
     sample["im_name"]
 )
 
-
 # ============================================================
 # INPUTS
 # ============================================================
 
 image = sample["image"].unsqueeze(0)
-
 pose_map = sample["pose_map"].unsqueeze(0)
-
 mask_image = sample["inpaint_mask"].unsqueeze(0)
 
 # Because order="unpaired", this is the
 # im_sketch_unpaired image internally.
 sketch = sample["im_sketch"].unsqueeze(0)
 
-
 # ============================================================
 # SAVE INPUTS
 # ============================================================
 
-original_np = (
-    image[0]
-    .permute(1, 2, 0)
-    .cpu()
-    .numpy()
-)
+original_np = (image[0].permute(1, 2, 0).cpu().numpy())
+original_np = (original_np + 1) / 2 * 255
+original_np = np.clip(original_np,0,255).astype(np.uint8)
 
-original_np = (
-        (original_np + 1)
-        / 2
-        * 255
-)
-
-original_np = np.clip(
-    original_np,
-    0,
-    255
-).astype(np.uint8)
-
-Image.fromarray(
-    original_np
-).save(
+Image.fromarray(original_np).save(
     os.path.join(
         OUTPUT_DIR,
         "original_person.png"
     )
 )
-
 
 # ------------------------------------------------------------
 # MASK
@@ -260,26 +238,16 @@ mask_debug = mask_image[0].cpu()
 if mask_debug.ndim == 3:
     mask_debug = mask_debug.squeeze(0)
 
-mask_debug = (
-        mask_debug.numpy()
-        * 255
-)
+mask_debug = mask_debug.numpy() * 255
 
-mask_debug = np.clip(
-    mask_debug,
-    0,
-    255
-).astype(np.uint8)
+mask_debug = np.clip(mask_debug,0,255).astype(np.uint8)
 
-Image.fromarray(
-    mask_debug
-).save(
+Image.fromarray(mask_debug).save(
     os.path.join(
         OUTPUT_DIR,
         "mask.png"
     )
 )
-
 
 # ------------------------------------------------------------
 # SKETCH
@@ -290,80 +258,41 @@ sketch_debug = sketch[0].cpu()
 if sketch_debug.shape[0] == 1:
     sketch_debug = sketch_debug.squeeze(0)
 
-sketch_debug = (
-        sketch_debug.numpy()
-        * 255
-)
+sketch_debug = sketch_debug.numpy() * 255
 
-sketch_debug = np.clip(
-    sketch_debug,
-    0,
-    255
-).astype(np.uint8)
+sketch_debug = np.clip(sketch_debug,0,255).astype(np.uint8)
 
-Image.fromarray(
-    sketch_debug
-).save(
+Image.fromarray(sketch_debug).save(
     os.path.join(
         OUTPUT_DIR,
         "garment_sketch.png"
     )
 )
 
-
 # ============================================================
 # ORIGINAL IMAGE FOR COMPOSITING
 # ============================================================
 
-original_np = (
-    image[0]
-    .permute(1, 2, 0)
-    .cpu()
-    .numpy()
-)
-
-original_np = (
-        (original_np + 1)
-        / 2
-        * 255
-)
-
-original_np = np.clip(
-    original_np,
-    0,
-    255
-)
-
+original_np = image[0].permute(1, 2, 0).cpu().numpy()
+original_np = (original_np + 1) / 2 * 255
+original_np = np.clip(original_np,0,255)
 
 # ============================================================
 # MASK FOR COMPOSITING
 # ============================================================
 
-mask_np = (
-    mask_image[0]
-    .cpu()
-    .numpy()
-)
+mask_np = mask_image[0].cpu().numpy()
 
 if mask_np.ndim == 3:
     mask_np = mask_np.squeeze(0)
 
 mask_np = mask_np[:, :, None]
 
-
 # ============================================================
 # TEXT PROMPT
 # ============================================================
-#
-# MGD expects a text condition.
-#
-# We deliberately keep it neutral so that the variation
-# comes primarily from the generative process rather than
-# manually specifying different designs.
-#
 
 prompt = "a fashionable garment with distinctive and unique design details"
-
 
 # ============================================================
 # START EXPERIMENT
@@ -389,15 +318,12 @@ print()
 print("This will be VERY slow on CPU.")
 print()
 
-
 # ============================================================
 # GENERATE VARIATIONS
 # ============================================================
 
 for i in range(NUM_VARIATIONS):
-
     variation_number = i + 1
-
     seed = BASE_SEED + i
 
     print()
@@ -407,11 +333,7 @@ for i in range(NUM_VARIATIONS):
     )
     print("----------------------------------------")
 
-    print(
-        "Seed:",
-        seed
-    )
-
+    print("Seed:",seed)
 
     # --------------------------------------------------------
     # SET RANDOM SEED
@@ -422,41 +344,26 @@ for i in range(NUM_VARIATIONS):
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
 
-
     # --------------------------------------------------------
     # GENERATE
     # --------------------------------------------------------
 
     result = mgd_pipe(
-
         prompt=prompt,
-
         image=image,
-
         mask_image=mask_image,
-
         pose_map=pose_map,
-
         sketch=sketch,
-
         height=512,
-
         width=384,
-
         num_inference_steps=NUM_INFERENCE_STEPS,
-
         guidance_scale=GUIDANCE_SCALE,
-
         sketch_cond_rate=SKETCH_COND_RATE,
-
         start_cond_rate=START_COND_RATE,
-
         output_type="pil",
     )
 
-
     generated = result.images[0]
-
 
     # --------------------------------------------------------
     # SAVE RAW OUTPUT
@@ -473,42 +380,21 @@ for i in range(NUM_VARIATIONS):
         )
     )
 
-
     # --------------------------------------------------------
     # COMPOSITE
     # --------------------------------------------------------
 
-    generated_np = np.array(
-        generated
-    ).astype(np.float32)
+    generated_np = np.array(generated).astype(np.float32)
+    final_np = generated_np * mask_np+original_np * (1 - mask_np)
+    final_np = np.clip(final_np,0,255).astype(np.uint8)
 
-
-    final_np = (
-            generated_np * mask_np
-            +
-            original_np * (1 - mask_np)
-    )
-
-
-    final_np = np.clip(
-        final_np,
-        0,
-        255
-    ).astype(np.uint8)
-
-
-    final_image = Image.fromarray(
-        final_np
-    )
-
+    final_image = Image.fromarray(final_np)
 
     # --------------------------------------------------------
     # SAVE FINAL IMAGE
     # --------------------------------------------------------
 
-    filename = (
-        f"variation_{variation_number:02d}.png"
-    )
+    filename = (f"variation_{variation_number:02d}.png")
 
     final_image.save(
         os.path.join(
@@ -517,11 +403,7 @@ for i in range(NUM_VARIATIONS):
         )
     )
 
-
-    print(
-        "Saved:",
-        filename
-    )
+    print("Saved:",filename)
 
 
 # ============================================================
@@ -534,14 +416,7 @@ print("EXPERIMENT COMPLETE")
 print("========================================")
 print()
 
-print(
-    "Results saved to:",
-    OUTPUT_DIR
-)
+print("Results saved to:",OUTPUT_DIR)
 
 print()
-print(
-    "Generated",
-    NUM_VARIATIONS,
-    "variations."
-)
+print("Generated",NUM_VARIATIONS,"variations.")
